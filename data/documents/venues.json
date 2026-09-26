@@ -1,0 +1,9 @@
+{
+  "chunks": [
+    {"doc_id":"VENUE_01","section":"Pune Workshop Hall","page":1,"chunk_id":"VENUE_01_S1_C1","text":"Pune Workshop Hall accommodates up to 40 attendees. The room supports classroom seating and projector use."},
+    {"doc_id":"VENUE_01","section":"Pune Workshop Hall Catering","page":2,"chunk_id":"VENUE_01_S2_C1","text":"Pune Workshop Hall offers vegetarian and standard catering packages when requested at least three days in advance."},
+    {"doc_id":"VENUE_01","section":"Pune Workshop Hall Cancellation","page":2,"chunk_id":"VENUE_01_S3_C1","text":"Pune Workshop Hall bookings may be cancelled without a fee up to seven days before the event."},
+    {"doc_id":"VENUE_02","section":"Pune Conference Centre","page":1,"chunk_id":"VENUE_02_S1_C1","text":"Pune Conference Centre accommodates up to 80 attendees and has two presentation rooms."},
+    {"doc_id":"VENUE_02","section":"Pune Conference Centre Catering","page":2,"chunk_id":"VENUE_02_S2_C1","text":"External catering is permitted at Pune Conference Centre with prior venue approval."}
+  ]
+}

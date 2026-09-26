@@ -1,0 +1,8 @@
+{
+  "chunks": [
+    {"doc_id":"DOC_01","section":"Venue Capacity","page":1,"chunk_id":"DOC_01_S1_C1","text":"Pune Hall A can accommodate up to 40 attendees and provides classroom seating."},
+    {"doc_id":"DOC_01","section":"Catering","page":2,"chunk_id":"DOC_01_S2_C1","text":"Pune Hall A offers vegetarian and standard catering packages with advance notice."},
+    {"doc_id":"DOC_02","section":"Cancellation Policy","page":3,"chunk_id":"DOC_02_S1_C1","text":"Bookings may be cancelled without a fee up to seven days before the event."},
+    {"doc_id":"DOC_02","section":"Cancellation Policy","page":3,"chunk_id":"DOC_02_S1_C2","text":"Cancellations made fewer than seven days before the event are subject to the stated booking fee."}
+  ]
+}

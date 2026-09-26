@@ -1,0 +1,8 @@
+{
+  "chunks": [
+    {"doc_id":"POLICY_01","section":"Standard Reimbursement","page":4,"chunk_id":"POLICY_01_S1_C1","text":"Employees may claim reasonable travel expenses supported by itemized receipts and an approved travel request."},
+    {"doc_id":"POLICY_01","section":"International Travel","page":5,"chunk_id":"POLICY_01_S2_C1","text":"International travel requires foreign-currency receipt verification and approval from the travel desk."},
+    {"doc_id":"POLICY_01","section":"Late Booking Exception","page":6,"chunk_id":"POLICY_01_S3_C1","text":"A booking made after travel requires senior director approval before reimbursement is processed."},
+    {"doc_id":"POLICY_02","section":"Missing Evidence","page":1,"chunk_id":"POLICY_02_S1_C1","text":"The policy does not specify a reimbursement limit for personal mobile phone usage."}
+  ]
+}

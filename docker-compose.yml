@@ -1,0 +1,20 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      RAG_DB_PATH: /app/data/rag.sqlite3
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+      RAG_API_KEY: ${RAG_API_KEY:-}
+      RAG_RATE_LIMIT_PER_MINUTE: ${RAG_RATE_LIMIT_PER_MINUTE:-0}
+    volumes:
+      - rag-data:/app/data
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+  benchmark:
+    build: .
+    command: python -m evaluation.benchmark
+
+volumes:
+  rag-data:

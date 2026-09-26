@@ -1,0 +1,110 @@
+[
+  {
+    "doc_id": "DOC_01_UCOP_G13",
+    "title": "UC Moving and Relocation Policy Summary (BFB-G-13)",
+    "url": "https://www.ucop.edu/business-resource-center/_files/smg-relocation-moving-summary.pdf",
+    "filename": "UCOP_G13_Relocation_Policy.pdf",
+    "category": "Relocation & Subsistence",
+    "status": "already_present",
+    "local_path": "data\\raw\\UCOP_G13_Relocation_Policy.pdf"
+  },
+  {
+    "doc_id": "DOC_02_RUTGERS_SOP11",
+    "title": "Rutgers SOP 11.0: Travel and Expense Management",
+    "url": "https://myrbs.business.rutgers.edu/sites/default/files/uploads/admin-finance/standard-operating-procedure-11.0-travel-and-expense-management.pdf",
+    "filename": "Rutgers_SOP11_Travel_Expense.pdf",
+    "category": "Travel & Lodging Approvals",
+    "status": "already_present",
+    "local_path": "data\\raw\\Rutgers_SOP11_Travel_Expense.pdf"
+  },
+  {
+    "doc_id": "DOC_03_ACADIA_TRAVEL",
+    "title": "Acadia University Travel Policy",
+    "url": "https://financial-services.acadiau.ca/files/sites/financial-services/resources/Policies/Travel%20Policy%20Final%20March%202023.pdf",
+    "filename": "Acadia_Travel_Policy.pdf",
+    "category": "Unallowable Charges & Policy Limits",
+    "status": "already_present",
+    "local_path": "data\\raw\\Acadia_Travel_Policy.pdf"
+  },
+  {
+    "doc_id": "DOC_04_UOREGON_TRAVEL",
+    "title": "University of Oregon Comprehensive Travel Policy",
+    "url": "https://policies.uoregon.edu/sites/default/files/IV.04.02%20Travel%20Policy%20-%20REVISION.pdf",
+    "filename": "UOregon_Travel_Policy.pdf",
+    "category": "Per Diem Rules & Hosted Meals",
+    "status": "already_present",
+    "local_path": "data\\raw\\UOregon_Travel_Policy.pdf"
+  },
+  {
+    "doc_id": "DOC_05_WUSTL_TRAVEL",
+    "title": "Washington University in St. Louis Travel Policy Statement",
+    "url": "https://biochem.wustl.edu/data/forms/2018/Policy-Statement-for-Travel-Advances-Travel-Expenses.pdf",
+    "filename": "WUSTL_Travel_Policy.pdf",
+    "category": "60-Day Deadlines & Missing Receipts",
+    "status": "already_present",
+    "local_path": "data\\raw\\WUSTL_Travel_Policy.pdf"
+  },
+  {
+    "doc_id": "DOC_06_NORTHWESTERN_TRAVEL",
+    "title": "Northwestern University Travel Expense & Reimbursement Guide",
+    "url": "https://www.mccormick.northwestern.edu/chemical-biological/documents/faculty-staff-resources/expense-report-guide.pdf",
+    "filename": "Northwestern_Travel_Guide.pdf",
+    "category": "Foreign Currency & 90-Day Exceptions",
+    "status": "already_present",
+    "local_path": "data\\raw\\Northwestern_Travel_Guide.pdf"
+  },
+  {
+    "doc_id": "DOC_07_SWEETBRIAR_TRAVEL",
+    "title": "Sweet Briar College Travel & Entertainment Procedures",
+    "url": "https://www.sbc.edu/live/files/777-travel-policy-and-procedures",
+    "filename": "SweetBriar_Travel_Procedures.pdf",
+    "category": "Receipt Exceptions & Accountable Plans",
+    "status": "already_present",
+    "local_path": "data\\raw\\SweetBriar_Travel_Procedures.pdf"
+  },
+  {
+    "doc_id": "DOC_08_OAKRIDGE_TRAVEL",
+    "title": "Oak Ridge Public Travel Policy and Procedures Manual",
+    "url": "http://www.ortn.edu/resources/Travel_Policy_and_Procedures.pdf",
+    "filename": "OakRidge_Travel_Procedures.pdf",
+    "category": "Departure/Return Per Diem & Mileage",
+    "status": "already_present",
+    "local_path": "data\\raw\\OakRidge_Travel_Procedures.pdf"
+  },
+  {
+    "doc_id": "DOC_09_CASEWESTERN_TRAVEL",
+    "title": "Case Western Reserve University Travel Policies",
+    "url": "https://artscimedia.case.edu/wp-content/uploads/sites/17/2013/10/21113704/Travel-policies.pdf",
+    "filename": "CaseWestern_Travel_Policy.pdf",
+    "category": "Coach Seating & Commercial Lodging",
+    "status": "already_present",
+    "local_path": "data\\raw\\CaseWestern_Travel_Policy.pdf"
+  },
+  {
+    "doc_id": "DOC_10_GSA_FTR_OVERVIEW",
+    "title": "GSA Federal Travel Regulation (FTR) Overview Manual",
+    "url": "https://www.gsa.gov/cdnstatic/FedFleet_2023_Federal_Travel_Regulation_Overview_508.pdf",
+    "filename": "GSA_FTR_Overview.pdf",
+    "category": "Federal Hierarchy & Seating Upgrades",
+    "status": "already_present",
+    "local_path": "data\\raw\\GSA_FTR_Overview.pdf"
+  },
+  {
+    "doc_id": "DOC_11_WPI_TRAVEL",
+    "title": "WPI Financial Operations Travel Policy",
+    "url": "https://web.wpi.edu/Images/CMS/Finops/Travel_Policy_4.7.2014.pdf",
+    "filename": "WPI_Travel_Policy.pdf",
+    "category": "Receipt Waivers & Incidental Caps",
+    "status": "already_present",
+    "local_path": "data\\raw\\WPI_Travel_Policy.pdf"
+  },
+  {
+    "doc_id": "DOC_12_UCOP_BUS63",
+    "title": "UC Certificate of Insurance & Contractor Liability (BFB-BUS-63)",
+    "url": "https://www.ucop.edu/risk-services-insurance/_files/policies/bfb-bus-63.pdf",
+    "filename": "UCOP_BUS63_Insurance_Manual.pdf",
+    "category": "Vendor Liability & Indemnification",
+    "status": "already_present",
+    "local_path": "data\\raw\\UCOP_BUS63_Insurance_Manual.pdf"
+  }
+]

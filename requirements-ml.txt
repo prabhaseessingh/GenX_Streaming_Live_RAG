@@ -1,0 +1,2 @@
+# Optional semantic reranking. The core application does not require this.
+sentence-transformers>=3.0,<4
