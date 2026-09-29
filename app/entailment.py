@@ -7,10 +7,14 @@ class EntailmentChecker:
     def __init__(self):
         self.model = None
         model_name = os.getenv("ENTAILMENT_MODEL", "")
-        if model_name:
+        if model_name and os.getenv("ENTAILMENT_ENABLED", "0").lower() in {"1", "true", "yes"}:
             try:
                 from sentence_transformers import CrossEncoder
-                self.model = CrossEncoder(model_name)
+                local_only = os.getenv("ENTAILMENT_LOCAL_ONLY", "1").lower() in {"1", "true", "yes"}
+                if local_only:
+                    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+                model_args = {"local_files_only": True} if local_only else {}
+                self.model = CrossEncoder(model_name, automodel_args=model_args, tokenizer_args=model_args)
             except Exception:
                 self.model = None
 

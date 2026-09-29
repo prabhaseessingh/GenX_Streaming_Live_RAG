@@ -6,7 +6,7 @@ future development should happen.
 ## 1. High-level flow
 
 ```text
-Transcript/API input
+Transcript/API or ASR audio input
         |
         v
 Retrieval Controller
@@ -63,6 +63,10 @@ The flow is:
 11. Detect conflicting policy values.
 12. Persist the session and emit telemetry.
 
+For audio, Faster-Whisper emits timestamped segments. The audio endpoint feeds
+each segment through this same lifecycle in chronological order, so ASR does
+not use a separate answer path.
+
 ## 3. Important files
 
 | File | Responsibility |
@@ -84,6 +88,15 @@ The flow is:
 | `tests/` | Regression and behavior tests |
 
 ## 4. Environment setup
+
+Install all backend dependencies from the single repository requirements file:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+The model packages are installed up front, but model weights are loaded only
+when their `*_ENABLED` setting is enabled.
 
 Create a local environment file:
 
@@ -146,7 +159,7 @@ python -m evaluation.live_llm_smoke
 
 Current baseline:
 
-- 23 automated tests
+- 34 automated tests
 - 6/6 benchmark gates
 - 100% top-5 relevance hit rate
 - Reproducible retrieval rankings
@@ -202,9 +215,9 @@ Do not weaken these checks to improve answer fluency.
 
 ### Priority 5: Product layer
 
-- Build the frontend only after API behavior and evaluation are stable.
-- Add streaming transcript visualization and telemetry views.
-- Add document/source management for corpus replacement.
+- Keep the frontend and audio demo aligned with the stable API.
+- Replay evaluation against the official hackathon corpus when available.
+- Add CI and deployment observability before production hosting.
 
 ## 10. Contribution guidelines
 

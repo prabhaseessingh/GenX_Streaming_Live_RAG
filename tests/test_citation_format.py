@@ -31,6 +31,10 @@ class CitationFormatTests(unittest.TestCase):
         manager = SessionManager(FusedRetriever(load_corpus("data/documents")), Telemetry(), UnsupportedButCitedLLM())
         result = manager.ingest("grounding-fallback", "What is the relocation policy?")
         self.assertNotIn("Volcano relocation", result["answer"])
-        self.assertTrue(any(e["event_type"] == "LLM_DRAFT_REJECTED" and e["metadata"].get("reason") == "claim_validation_failed" for e in result["telemetry"]))
+        self.assertTrue(any(
+            e["event_type"] == "LLM_DRAFT_REJECTED"
+            and e["metadata"].get("reason") in {"claim_validation_failed", "insufficient_evidence"}
+            for e in result["telemetry"]
+        ))
 
 if __name__ == "__main__": unittest.main()

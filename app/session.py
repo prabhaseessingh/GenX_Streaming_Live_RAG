@@ -1,7 +1,7 @@
 from .controller import decide
 from .decomposer import decompose
 from .models import SessionState
-from .synthesis import grounded_answer, validate, detect_conflicts, clean_answer
+from .synthesis import grounded_answer, validate, detect_conflicts, clean_answer, relevant_excerpt
 from .entailment import EntailmentChecker
 import re
 import time
@@ -13,6 +13,11 @@ class SessionManager:
         self.entailment = EntailmentChecker()
         self.sessions = {}
 
+    def replace_corpus(self, chunks):
+        """Hot-reload retrieval after a corpus rebuild or upload."""
+        from .retrieval import FusedRetriever
+        self.retriever = FusedRetriever(chunks)
+
     def get(self, session_id):
         if session_id not in self.sessions:
             self.sessions[session_id] = (self.store.load_session(session_id) if self.store else None) or SessionState(session_id)
@@ -22,16 +27,31 @@ class SessionManager:
         if self.store:
             self.store.save_session(state)
 
-    def ingest(self, session_id: str, text: str):
+    def ingest(self, session_id: str, text: str, timestamp_s: float | None = None, source: str = "text"):
         state = self.get(session_id)
         state.transcript = f"{state.transcript} {text}".strip()
-        self.telemetry.emit(session_id, "TRANSCRIPT_CHUNK", text=text)
+        self.telemetry.emit(session_id, "TRANSCRIPT_CHUNK", text=text, timestamp_s=timestamp_s, source=source)
         # Controller evaluates the newly arrived turn so presentation-only
         # requests are not confused by constraints in earlier transcript text.
         llm_active = bool(self.llm)
         try:
-            decision = self.llm.decide(text, state.answer) if self.llm else decide(text, state.answer)
-            if self.llm: self.telemetry.emit(session_id, "LLM_USAGE", stage="controller", model=self.llm.model, latency_ms=self.llm.last_latency_ms, usage=self.llm.last_usage)
+            # Apply a deterministic lower bound before the LLM controller. A
+            # model must not override WAIT for a generic streaming fragment.
+            preliminary = decide(text, state.answer)
+            if preliminary.decision == "WAIT":
+                decision = preliminary
+                llm_active = False
+            elif preliminary.decision == "NO_RETRIEVE":
+                decision = preliminary
+                llm_active = False
+            else:
+                model_decision = self.llm.decide(text, state.answer) if self.llm else preliminary
+                # The deterministic controller is the safety floor for live
+                # transcript input. An LLM may refine a stable question, but
+                # it must not downgrade an explicit question to WAIT merely
+                # because ASR removed punctuation or conversational filler.
+                decision = preliminary if model_decision.decision == "WAIT" else model_decision
+                if self.llm: self.telemetry.emit(session_id, "LLM_USAGE", stage="controller", model=self.llm.model, latency_ms=self.llm.last_latency_ms, usage=self.llm.last_usage)
         except Exception as exc:
             llm_active = False
             self.telemetry.emit(session_id, "LLM_ERROR", stage="controller", error_type=type(exc).__name__, error=str(exc)[:300])
@@ -39,12 +59,12 @@ class SessionManager:
         self.telemetry.emit(session_id, "CONTROLLER_DECISION", decision=decision.decision, confidence=decision.confidence, reason=decision.reason)
         if decision.decision == "WAIT":
             self.save(state)
-            return {"decision": decision.__dict__, "answer": state.answer}
+            return {"decision": decision.__dict__, "answer": state.answer, "transcript_chunk": text, "timestamp_s": timestamp_s, "source": source, "resolved_query": None}
         if decision.decision == "NO_RETRIEVE":
             state.answer = clean_answer("\n".join(f"- {line}" for line in state.answer.splitlines()))
             self.save(state)
             self.telemetry.emit(session_id, "NO_RETRIEVE", reason=decision.reason)
-            return {"decision": decision.__dict__, "answer": state.answer, "version": state.answer_version}
+            return {"decision": decision.__dict__, "answer": state.answer, "version": state.answer_version, "timestamp_s": timestamp_s, "source": source, "transcript_chunk": text, "resolved_query": None}
         is_delta = bool(state.answer and re.search(r"\b(actually|instead|international|domestic|after travel|before travel|change|changed)\b|\b\d+\b", text, re.I))
         query_text = text if is_delta else state.transcript
         try:
@@ -82,19 +102,30 @@ class SessionManager:
         # evidence to reduce unrelated policy spillover and token cost.
         for query_id, hits in evidence.items():
             seen = set()
-            focused = []
+            relevant_hits = []
             for hit in hits:
                 if hit.chunk.chunk_id in seen: continue
                 seen.add(hit.chunk.chunk_id)
                 hit.chunk.text = hit.chunk.text[:1800]
-                focused.append(hit)
-                if len(focused) == 2: break
+                query = next((q["query"] for q in subqueries if q["id"] == query_id), "")
+                if relevant_excerpt(query, hit.chunk.text):
+                    relevant_hits.append(hit)
+            focused = relevant_hits[:2]
+            # Drop candidates that match broad topic words but do not contain
+            # the requested object (for example, exchange fees when the user
+            # asked for exchange-rate documentation).
             evidence[query_id] = focused
         answer, claims = grounded_answer(subqueries, evidence)
         grounded_fallback_answer, grounded_fallback_claims = answer, claims
         answer = clean_answer(answer)
         llm_draft_used = False
-        if llm_active:
+        # Do not ask the answer model to fill an evidence gap. An empty or
+        # relevance-gated result must remain an explicit insufficient-evidence
+        # response, otherwise the model can turn generic policy context into
+        # a confident answer to an unsupported question.
+        if llm_active and not any(evidence.values()):
+            self.telemetry.emit(session_id, "LLM_DRAFT_REJECTED", reason="insufficient_evidence")
+        elif llm_active and evidence and all(evidence.values()):
             # Use the model for drafting, but retain deterministic claims and
             # validation as the source of truth for citation integrity.
             try:
@@ -142,13 +173,17 @@ class SessionManager:
         state.answer, state.claims = answer, claims
         state.intents = [q["intent"] for q in subqueries]
         validation = validate(answer, claims, evidence, self.entailment)
+        if not any(evidence.values()):
+            validation["valid"] = False
+            validation["uncertainty"] = True
+            validation["insufficient_evidence"] = True
         answer_citations = set(re.findall(r"\[([^\[\]]+)\]", answer))
         evidence_ids = {item.chunk.chunk_id for hits in evidence.values() for item in hits}
         evidence_ids.update(citation for claim in state.claims for citation in claim.citations)
         validation["citations"] = sorted(answer_citations & evidence_ids) if answer_citations else validation["citations"]
         validation["citation_integrity"] = not bool(answer_citations - evidence_ids)
         validation["uncertainty"] = validation["uncertainty"] or not validation["citation_integrity"]
-        conflicts = detect_conflicts(evidence)
+        conflicts = detect_conflicts(evidence, claims)
         validation["conflicts"] = conflicts
         validation["uncertainty"] = validation["uncertainty"] or bool(conflicts)
         # Fail closed on grounding: an LLM draft that passes citation syntax
@@ -172,4 +207,15 @@ class SessionManager:
         self.telemetry.emit(session_id, "ANSWER_GENERATED", version=state.answer_version)
         self.telemetry.emit(session_id, "CITATION_VALIDATED", **validation)
         self.save(state)
-        return {"decision": decision.__dict__, "answer": answer, "citations": validation["citations"], "version": state.answer_version, "telemetry": self.telemetry.for_session(session_id)}
+        return {
+            "decision": decision.__dict__,
+            "answer": answer,
+            "citations": validation["citations"],
+            "version": state.answer_version,
+            "transcript_chunk": text,
+            "timestamp_s": timestamp_s,
+            "source": source,
+            "resolved_query": query_text,
+            "subqueries": subqueries,
+            "telemetry": self.telemetry.for_session(session_id),
+        }

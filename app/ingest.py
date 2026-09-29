@@ -36,16 +36,16 @@ def ingest_json(path: Path) -> list[Chunk]:
         chunks.append(Chunk(item.get("chunk_id", f"{path.stem}_{i:04d}"), item.get("doc_id", path.stem), item.get("section", "General"), item.get("page"), item["text"].strip()))
     return chunks
 
-def ingest_markdown(path: Path) -> list[Chunk]:
-    doc_id, section, chunks, buffer, index = path.stem, "General", [], [], 1
+def ingest_markdown(path: Path, doc_id: str | None = None, category: str | None = None, title: str = "", source_url: str = "") -> list[Chunk]:
+    doc_id, section, chunks, buffer, index = doc_id or path.stem, category or "General", [], [], 1
     for line in path.read_text(encoding="utf-8").splitlines():
         heading = re.match(r"^#{1,6}\s+(.+)$", line.strip())
         if heading:
-            item = _chunk(doc_id, section, " ".join(buffer), index=index)
+            item = _chunk(doc_id, section, " ".join(buffer), index=index, title=title, category=category or section, source_url=source_url)
             if item: chunks.append(item); index += 1
             section, buffer = heading.group(1).strip(), []
         elif line.strip(): buffer.append(line.strip())
-    item = _chunk(doc_id, section, " ".join(buffer), index=index)
+    item = _chunk(doc_id, section, " ".join(buffer), index=index, title=title, category=category or section, source_url=source_url)
     if item: chunks.append(item)
     return chunks
 
@@ -83,7 +83,7 @@ def ingest_pdf(path: Path, doc_id: str | None = None, category: str | None = Non
 def ingest_file(path: str | Path, doc_id: str | None = None, category: str | None = None, title: str = "", source_url: str = "") -> list[Chunk]:
     path = Path(path)
     if path.suffix.lower() == ".json": return ingest_json(path)
-    if path.suffix.lower() in {".md", ".markdown", ".txt"}: return ingest_markdown(path)
+    if path.suffix.lower() in {".md", ".markdown", ".txt"}: return ingest_markdown(path, doc_id, category, title, source_url)
     if path.suffix.lower() == ".pdf": return ingest_pdf(path, doc_id, category, title, source_url)
     raise ValueError(f"Unsupported corpus file: {path.suffix}")
 

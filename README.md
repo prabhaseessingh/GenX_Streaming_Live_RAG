@@ -22,6 +22,10 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 ```
 
+This is the only backend dependency file. It includes the API, PDF ingestion,
+semantic reranking, NLI validation, and Faster-Whisper runtimes. Model weights
+are still downloaded only when the corresponding feature is enabled in `.env`.
+
 Create the local environment file from the template:
 
 ```powershell
@@ -64,7 +68,7 @@ Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/session/demo-1/chunk"
 Use a new session ID for an independent conversation. Active state is cached in
 memory and persisted to SQLite for recovery across restarts.
 
-Endpoints: `GET /health`, `POST /session/{id}/chunk`, `GET /session/{id}/events`, and `WS /ws/session/{id}`. See [docs/API.md](docs/API.md).
+Endpoints: `GET /health`, `POST /session/{id}/chunk`, `POST /session/{id}/audio`, `GET /session/{id}/events`, `POST /corpus/upload`, `POST /corpus/rebuild`, and `WS /ws/session/{id}`. See [docs/API.md](docs/API.md).
 
 For the architecture, request lifecycle, file ownership, safety rules, and
 future work, see [docs/PROJECT_FLOW.md](docs/PROJECT_FLOW.md).
@@ -89,13 +93,42 @@ python -m uvicorn app.main:app --reload
 python -m evaluation.live_llm_smoke
 ```
 
-Malformed or failed LLM drafts are rejected and replaced by deterministic grounded answers. Optional semantic reranking can be enabled with `python -m pip install -r requirements-ml.txt` and `RERANKER_MODEL`.
+Malformed or failed LLM drafts are rejected and replaced by deterministic grounded answers. Semantic reranking and local ASR dependencies are included in the single `requirements.txt` installation. Enable reranking with `RERANKER_MODEL` and `RERANKER_ENABLED=1`. Keep `RERANKER_LOCAL_ONLY=1` for offline startup after the model has been cached locally.
 
-For optional NLI-based claim validation, set `ENTAILMENT_MODEL` to a compatible
-three-class CrossEncoder model. If it is unavailable, claim validation falls
-back to deterministic evidence overlap.
+For optional NLI-based claim validation, set `ENTAILMENT_MODEL` and
+`ENTAILMENT_ENABLED=1` to a compatible three-class CrossEncoder model. If it
+is unavailable, claim validation falls back to deterministic evidence overlap.
 
 The raw PDFs under `data/raw/` are ignored by Git because their redistribution
 rights may vary. The processed corpus and manifest are included so the repo
 can run immediately. Only commit raw PDFs if the hackathon explicitly permits
 their redistribution.
+
+## ASR and timestamped transcript mode
+
+`POST /session/{id}/audio` accepts an audio file, transcribes it with
+Faster-Whisper, and forwards each timestamped segment through the same
+incremental controller and retrieval pipeline. The frontend's **Upload audio**
+button uses this endpoint and displays each segment timestamp. Set `ASR_MODEL`,
+`ASR_DEVICE`, and `ASR_COMPUTE_TYPE` in `.env` to control the local model.
+
+To replace the corpus without code changes, upload a supported document with
+`POST /corpus/upload`, or place documents in `RAG_RAW_DIR` and call
+`POST /corpus/rebuild`. A `corpus_manifest.json` can assign stable document IDs.
+
+Example upload:
+
+```powershell
+curl.exe -X POST -F "file=@new-policy.pdf" http://127.0.0.1:8000/corpus/upload
+```
+
+Example rebuild after replacing files under `data/raw/`:
+
+```powershell
+python -m app.cli ingest data/raw data/processed
+```
+
+The manifest entry for a source file should provide `filename`, `doc_id`,
+`title`, `category`, and optional `url`. Chunk IDs are generated from the
+stable document ID and chunk order, so citations remain reproducible across
+rebuilds.

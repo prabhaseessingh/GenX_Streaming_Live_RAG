@@ -1,11 +1,18 @@
 import math
 import re
 import hashlib
+import os
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from .models import Chunk, Evidence
 
 STOP = {"the", "a", "an", "and", "or", "to", "of", "in", "for", "is", "what", "are", "me", "tell", "about"}
+# Broad request vocabulary is useful for matching, but it is not evidence of
+# a specific answer. Keep it out of the unsupported-query relevance gate.
+GENERIC_QUERY_TERMS = {
+    "policy", "policies", "university", "travel", "expense", "expenses",
+    "reimburse", "reimbursement", "rules", "question", "information", "mission", "according",
+}
 
 def tokens(text: str) -> list[str]:
     return [t for t in re.findall(r"[a-z0-9]+", text.lower()) if t not in STOP]
@@ -116,6 +123,76 @@ class FusedRetriever:
             rescored.append(item)
         rescored.sort(key=lambda x: (-x.score, x.chunk.chunk_id))
         rescored = self.semantic.rerank(query, rescored, top_k * 2)
+        query_terms = set(tokens(query))
+
+        # Section labels extracted from PDFs can be attached to the next
+        # paragraph after a page/table break. Verify the actual chunk body
+        # before allowing a section-only match to become evidence.
+        specific_terms = query_terms - GENERIC_QUERY_TERMS
+        if len(specific_terms) >= 2:
+            body_relevant = []
+            for item in rescored:
+                body_terms = set(tokens(" ".join([
+                    item.chunk.text,
+                    item.chunk.title,
+                    item.chunk.doc_id,
+                ])))
+                section_terms = set(tokens(item.chunk.section))
+                section_only_match = not (specific_terms & body_terms) and bool(specific_terms & section_terms)
+                if not section_only_match:
+                    body_relevant.append(item)
+            rescored = body_relevant
+
+        # Relevance gate: broad policy words can produce plausible-looking
+        # hits for unsupported questions. Use corpus statistics rather than
+        # corpus-specific keywords to require coverage of enough distinctive
+        # query terms. This keeps generic words such as "policy" and
+        # "reimbursement" from grounding an unrelated answer.
+        rare_limit = max(3, int(len(self.chunks) * 0.08))
+        out_of_corpus = {term for term in query_terms if self.sparse.df.get(term, 0) == 0}
+        source_hint_terms = {
+            term.lower() for term in re.findall(r"\b[A-Z][a-z]{3,}\b", query)
+        }
+        known_non_generic = {
+            term for term in query_terms
+            if term not in out_of_corpus
+            and term not in GENERIC_QUERY_TERMS
+            and term not in source_hint_terms
+        }
+        distinctive = {
+            term for term in query_terms
+            if term not in GENERIC_QUERY_TERMS
+            and 0 < self.sparse.df.get(term, 0) <= rare_limit
+        }
+
+        # A single unknown term can be a location, name, or user-specific
+        # constraint, so it must not suppress otherwise useful evidence. Two
+        # or more unknown terms are a stronger unsupported-query signal. When
+        # that happens, require at least two corpus-known distinctive terms to
+        # appear in a candidate; otherwise return no evidence.
+        # A single unknown modifier is also unsupported when every remaining
+        # term is generic (for example, ``lunar reimbursement travel``). This
+        # does not reject normal location/name queries because those retain a
+        # known non-generic term such as venue, receipts, mileage, or currency.
+        if out_of_corpus and not known_non_generic:
+            rescored = []
+        elif len(out_of_corpus) >= 2:
+            if not distinctive:
+                rescored = []
+            elif len(distinctive) >= 2:
+                minimum_distinctive = max(2, math.ceil(len(distinctive) / 2))
+                gated = []
+                for item in rescored:
+                    candidate_terms = set(tokens(" ".join([
+                        item.chunk.text,
+                        item.chunk.section,
+                        item.chunk.title,
+                        item.chunk.doc_id,
+                    ])))
+                    if len(distinctive & candidate_terms) >= minimum_distinctive:
+                        gated.append(item)
+                rescored = gated
+
         for i, item in enumerate(rescored[:top_k], 1): item.rank = i
         return rescored[:top_k]
 
@@ -159,15 +236,26 @@ class DenseRetriever:
 class SemanticReranker:
     """Optional CrossEncoder reranker over a small fused candidate set.
 
-    Install `requirements-ml.txt` and set `RERANKER_MODEL` to enable it. The
+    Install `requirements.txt` and set `RERANKER_MODEL` plus
+    `RERANKER_ENABLED=1` to enable it. The
     fallback preserves deterministic behavior when model weights are absent.
     """
     def __init__(self):
         self.model = None
+        if os.getenv("RERANKER_ENABLED", "0").lower() not in {"1", "true", "yes"}:
+            return
         try:
             from sentence_transformers import CrossEncoder
-            import os
-            self.model = CrossEncoder(os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"))
+            model_name = os.getenv("RERANKER_MODEL")
+            if not model_name:
+                return
+            # Keep local development and evaluation deterministic/offline by
+            # default. Set RERANKER_LOCAL_ONLY=0 when downloading is desired.
+            local_only = os.getenv("RERANKER_LOCAL_ONLY", "1").lower() in {"1", "true", "yes"}
+            if local_only:
+                os.environ.setdefault("HF_HUB_OFFLINE", "1")
+            model_args = {"local_files_only": True} if local_only else {}
+            self.model = CrossEncoder(model_name, automodel_args=model_args, tokenizer_args=model_args)
         except Exception:
             self.model = None
 
