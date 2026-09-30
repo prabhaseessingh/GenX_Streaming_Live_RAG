@@ -1,134 +1,161 @@
-# Adaptive Incremental RAG
+# GenX Streaming Live RAG
 
-Backend-first implementation for the Streaming Live RAG hackathon track. The system processes transcript chunks, decides whether retrieval is needed, decomposes compound questions, retrieves and reranks policy evidence, and returns citation-grounded answers with uncertainty and telemetry.
+GenX Streaming Live RAG is an end-to-end streaming retrieval-augmented generation system for live transcripts and audio. It waits for stable intent, retrieves only when useful, answers from the supplied corpus, validates citations and grounding, and exposes the decision and telemetry trail in a web control room.
 
-## Features
+## What the product does
 
-- `WAIT` / `RETRIEVE` / `NO_RETRIEVE` controller
-- Multi-intent decomposition and parallel retrieval
-- BM25, lexical, deterministic dense retrieval, and reciprocal-rank fusion
-- Optional CrossEncoder semantic reranking
-- Session refinement and delta retrieval
-- PDF/Markdown/JSON ingestion with section-aware chunking
-- Claim-level citation and grounding validation
-- Contradiction/uncertainty handling and structured telemetry
-- Groq LLM answering with deterministic fallback
+- Accepts transcript chunks over HTTP or WebSocket.
+- Accepts audio and transcribes it locally with Faster-Whisper.
+- Preserves ASR timestamps and forwards segments through the same incremental pipeline.
+- Chooses `WAIT`, `RETRIEVE`, or `NO_RETRIEVE`.
+- Decomposes multi-intent questions and retrieves evidence in parallel.
+- Combines lexical, BM25, deterministic dense, reciprocal-rank fusion, and optional CrossEncoder reranking.
+- Generates grounded answers through Groq when configured, with a deterministic offline fallback.
+- Rejects malformed or weakly grounded LLM drafts.
+- Detects conflicts and reports uncertainty instead of silently merging policy values.
+- Persists sessions and telemetry in SQLite.
+- Supports corpus upload and rebuild without changing application code.
+- Provides user verification and developer observability views in the frontend.
 
-## Setup
+## Repository layout
+
+```
+.
+├── backend/
+│   ├── app/                 # FastAPI API and RAG pipeline
+│   ├── data/                # Raw and processed corpus plus local SQLite state
+│   ├── docs/                # API, project flow, and evaluation report
+│   ├── evaluation/          # Benchmark and relevance evaluation
+│   ├── tests/               # Automated backend tests
+│   ├── .env.example         # Backend configuration template
+│   ├── requirements.txt     # Single backend dependency file
+│   └── README.md            # Backend-specific setup and architecture
+├── frontend/
+│   ├── src/                 # Next.js application
+│   ├── public/              # Logos and static assets
+│   ├── package.json         # Frontend scripts and dependencies
+│   └── README.md            # Frontend-specific setup and structure
+├── start-dev.bat            # Windows setup and launcher
+├── start-dev.sh             # macOS/Linux setup and launcher
+└── README.md                # This project guide
+```
+
+## Quick start
+
+### One command
+
+Windows PowerShell or Command Prompt:
+
+```bat
+start-dev.bat
+```
+
+macOS/Linux:
+
+```bash
+chmod +x start-dev.sh
+./start-dev.sh
+```
+
+The launcher creates the backend virtual environment when needed, installs backend dependencies on first setup, installs frontend packages when `node_modules` is missing, creates `backend/.env` from the template when needed, and starts both development servers.
+
+- Backend API: http://127.0.0.1:8000
+- API health: http://127.0.0.1:8000/health
+- Frontend: http://127.0.0.1:3000
+
+### Manual setup
+
+Backend:
 
 ```powershell
+cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-```
-
-This is the only backend dependency file. It includes the API, PDF ingestion,
-semantic reranking, NLI validation, and Faster-Whisper runtimes. Model weights
-are still downloaded only when the corresponding feature is enabled in `.env`.
-
-Create the local environment file from the template:
-
-```powershell
 Copy-Item .env.example .env
-notepad .env
+# Edit .env and add GROQ_API_KEY if LLM mode is required
+python -m uvicorn app.main:app --reload
 ```
 
-Set `GROQ_API_KEY` in `.env` if you want LLM mode. Keep `.env` local; it is
-ignored by Git. Leave it empty for offline deterministic mode.
-
-The processed corpus is included at `data/processed/corpus.json`. Rebuild it after changing raw documents:
+Frontend, in another terminal:
 
 ```powershell
-Remove-Item -Recurse -Force data/processed -ErrorAction SilentlyContinue
+cd frontend
+npm install
+npm run dev
+```
+
+For macOS/Linux, activate the backend environment with `source .venv/bin/activate`.
+
+## Configuration
+
+Backend configuration lives in `backend/.env`. Start from `backend/.env.example`.
+
+Important settings:
+
+- `GROQ_API_KEY`: enables Groq LLM controller, decomposition, and synthesis.
+- `GROQ_MODEL`: Groq model name.
+- `RAG_API_KEY`: optional API-key protection for HTTP and WebSocket requests.
+- `RAG_RATE_LIMIT_PER_MINUTE`: optional per-IP request limit.
+- `RAG_CORPUS_DIR`, `RAG_RAW_DIR`: processed and source corpus locations.
+- `RERANKER_ENABLED`, `RERANKER_MODEL`: optional local semantic reranking.
+- `ENTAILMENT_ENABLED`, `ENTAILMENT_MODEL`: optional local claim entailment validation.
+- `ASR_MODEL`, `ASR_DEVICE`, `ASR_COMPUTE_TYPE`: local Faster-Whisper settings.
+- `NEXT_PUBLIC_API_URL`: optional frontend backend URL override; the frontend normally proxies through `/api/rag`.
+- `NEXT_PUBLIC_API_KEY`: optional frontend API key. A browser-stored `rag_api_key` takes precedence.
+
+Never commit `backend/.env`, API keys, SQLite databases, virtual environments, `node_modules`, or private raw documents.
+
+## Corpus workflow
+
+Place supported files in `backend/data/raw/`, or use the frontend Corpus Management panel.
+
+Supported formats: PDF, Markdown, TXT, and JSON.
+
+Rebuild manually:
+
+```powershell
+cd backend
 python -m app.cli ingest data/raw data/processed
 ```
 
-## Offline run and evaluation
+Or call:
 
 ```powershell
-python -m app.cli demo
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/corpus/rebuild"
+```
+
+Stable document IDs can be assigned through `backend/data/raw/corpus_manifest.json`. See `backend/docs/API.md` and `backend/docs/PROJECT_FLOW.md`.
+
+## Testing and evaluation
+
+```powershell
+cd backend
 python -m unittest discover -s tests -v
 python -m evaluation.benchmark
 python -m evaluation.relevance
 ```
 
-## API
+The current evaluation summary is in [backend/docs/EVALUATION_REPORT.md](backend/docs/EVALUATION_REPORT.md).
 
-```powershell
-python -m uvicorn app.main:app --reload
-```
+## API and architecture
 
-```powershell
-Invoke-RestMethod "http://127.0.0.1:8000/health"
+- API reference: [backend/docs/API.md](backend/docs/API.md)
+- Project flow: [backend/docs/PROJECT_FLOW.md](backend/docs/PROJECT_FLOW.md)
+- Backend implementation: [backend/README.md](backend/README.md)
+- Frontend implementation: [frontend/README.md](frontend/README.md)
 
-$body = @{ text = "What are the foreign currency reimbursement rules?" } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/session/demo-1/chunk" -ContentType "application/json" -Body $body
-```
+## Typical demo flow
 
-Use a new session ID for an independent conversation. Active state is cached in
-memory and persisted to SQLite for recovery across restarts.
+1. Start both services with `start-dev.bat` or `start-dev.sh`.
+2. Open the frontend control room.
+3. Type or paste a partial transcript and observe `WAIT`.
+4. Add the completing chunk and observe `RETRIEVE`.
+5. Review the answer, citations, grounding/conflict status, and telemetry.
+6. Upload an audio recording and verify timestamped segments.
+7. Upload a new policy document or rebuild the corpus from the Corpus Management panel.
 
-Endpoints: `GET /health`, `POST /session/{id}/chunk`, `POST /session/{id}/audio`, `GET /session/{id}/events`, `POST /corpus/upload`, `POST /corpus/rebuild`, and `WS /ws/session/{id}`. See [docs/API.md](docs/API.md).
+## Current status
 
-For the architecture, request lifecycle, file ownership, safety rules, and
-future work, see [docs/PROJECT_FLOW.md](docs/PROJECT_FLOW.md).
+The backend and frontend are separated for deployment and maintenance. The backend is independently testable and deployable; the frontend is an independent Next.js application. The root launchers are intended for local development and demo use, while Docker remains available for backend-only deployment.
 
-Sessions and telemetry persist to SQLite at `data/rag.sqlite3` by default. Set
-`RAG_DB_PATH` to use another location. Set `RAG_API_KEY` to enable API-key
-authentication and `RAG_RATE_LIMIT_PER_MINUTE` to enable per-IP rate limiting.
-
-## Groq mode
-
-Edit `.env`:
-
-```dotenv
-GROQ_API_KEY=your-groq-api-key
-GROQ_MODEL=openai/gpt-oss-120b
-```
-
-Then start the API normally. The application loads `.env` automatically:
-
-```powershell
-python -m uvicorn app.main:app --reload
-python -m evaluation.live_llm_smoke
-```
-
-Malformed or failed LLM drafts are rejected and replaced by deterministic grounded answers. Semantic reranking and local ASR dependencies are included in the single `requirements.txt` installation. Enable reranking with `RERANKER_MODEL` and `RERANKER_ENABLED=1`. Keep `RERANKER_LOCAL_ONLY=1` for offline startup after the model has been cached locally.
-
-For optional NLI-based claim validation, set `ENTAILMENT_MODEL` and
-`ENTAILMENT_ENABLED=1` to a compatible three-class CrossEncoder model. If it
-is unavailable, claim validation falls back to deterministic evidence overlap.
-
-The raw PDFs under `data/raw/` are ignored by Git because their redistribution
-rights may vary. The processed corpus and manifest are included so the repo
-can run immediately. Only commit raw PDFs if the hackathon explicitly permits
-their redistribution.
-
-## ASR and timestamped transcript mode
-
-`POST /session/{id}/audio` accepts an audio file, transcribes it with
-Faster-Whisper, and forwards each timestamped segment through the same
-incremental controller and retrieval pipeline. The frontend's **Upload audio**
-button uses this endpoint and displays each segment timestamp. Set `ASR_MODEL`,
-`ASR_DEVICE`, and `ASR_COMPUTE_TYPE` in `.env` to control the local model.
-
-To replace the corpus without code changes, upload a supported document with
-`POST /corpus/upload`, or place documents in `RAG_RAW_DIR` and call
-`POST /corpus/rebuild`. A `corpus_manifest.json` can assign stable document IDs.
-
-Example upload:
-
-```powershell
-curl.exe -X POST -F "file=@new-policy.pdf" http://127.0.0.1:8000/corpus/upload
-```
-
-Example rebuild after replacing files under `data/raw/`:
-
-```powershell
-python -m app.cli ingest data/raw data/processed
-```
-
-The manifest entry for a source file should provide `filename`, `doc_id`,
-`title`, `category`, and optional `url`. Chunk IDs are generated from the
-stable document ID and chunk order, so citations remain reproducible across
-rebuilds.

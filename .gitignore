@@ -5,3 +5,34 @@ __pycache__/
 data/index/
 data/raw/*.pdf
 data/*.sqlite3
+
+# Backend runtime and local corpus files
+backend/.venv/
+backend/.env
+backend/data/index/
+backend/data/raw/*.pdf
+backend/data/*.sqlite3
+
+# Local demo/render outputs
+brag-output*/
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/.pnp/
+frontend/.pnp.*
+frontend/.yarn/
+frontend/coverage/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel/
+
+# Frontend local files and generated metadata
+frontend/.env*
+frontend/*.pem
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnpm-debug.log*
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
