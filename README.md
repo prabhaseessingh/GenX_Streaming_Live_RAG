@@ -10,6 +10,10 @@ GenX Streaming Live RAG is an end-to-end streaming retrieval-augmented generatio
 
 [Watch the GenX Streaming Live RAG demo](https://drive.google.com/file/d/1O0S11cT4RK201Q9DA3Om2AzDHGLNSCC7/view?usp=sharing)
 
+## PPT
+
+https://drive.google.com/file/d/1dWVOvDBZn0X00cBltP9k8GHmQtnan7p7/view?usp=sharing
+
 ## What the product does
 
 - Accepts transcript chunks over HTTP or WebSocket.
