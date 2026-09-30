@@ -13,9 +13,6 @@ backend/data/index/
 backend/data/raw/*.pdf
 backend/data/*.sqlite3
 
-# Local demo/render outputs
-brag-output*/
-
 # Frontend dependencies and build output
 frontend/node_modules/
 frontend/.pnp/

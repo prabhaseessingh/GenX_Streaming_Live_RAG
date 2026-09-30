@@ -132,11 +132,23 @@ Local ML models download on first use unless local-only mode is enabled and the 
 
 ## Corpus ingestion
 
+The corpus is replaceable: add new source files without changing the RAG code. Supported formats are
+PDF, Markdown, TXT, and JSON. The normal workflow is:
+
+1. Place one or more source files in `backend/data/raw`.
+2. Rebuild the processed corpus.
+3. Confirm the new chunk count with `/health`.
+4. Ask a question about the newly added document and verify its stable citation.
+
 Rebuild from all files in `data/raw`:
 
 ```powershell
 python -m app.cli ingest data/raw data/processed
 ```
+
+This extracts text, preserves document metadata where available, creates section-aware chunks, assigns
+stable document and chunk IDs, and writes the processed index to `data/processed`. If the API is already
+running, restart it after a CLI rebuild so it reloads the processed corpus.
 
 Run the API rebuild endpoint:
 
@@ -144,13 +156,35 @@ Run the API rebuild endpoint:
 Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/corpus/rebuild"
 ```
 
+The API rebuild reads every supported file from `RAG_RAW_DIR` and hot-reloads retrieval immediately.
+
 Upload a document:
 
 ```powershell
 curl.exe -X POST -F "file=@new-policy.pdf" http://127.0.0.1:8000/corpus/upload
 ```
 
+The upload endpoint accepts one file, saves it into `RAG_RAW_DIR`, rebuilds the processed corpus, and
+hot-reloads retrieval. The following `-Form` example requires PowerShell 7+; Windows PowerShell users
+can use the `curl.exe` command above:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:8000/corpus/upload" `
+  -Form @{ file = Get-Item ".\new-policy.pdf" }
+```
+
 The manifest `data/raw/corpus_manifest.json` may specify `filename`, `doc_id`, `title`, `category`, and `url`. Chunk IDs are derived from stable document IDs and chunk order.
+
+After either workflow, verify the result:
+
+```powershell
+Invoke-RestMethod "http://127.0.0.1:8000/health" | ConvertTo-Json
+```
+
+If API authentication is enabled, add `-Headers @{ "X-API-Key" = $env:RAG_API_KEY }` to the rebuild,
+upload, and health requests. Do not commit private source documents, generated processed files, `.env`,
+or the SQLite database unless the project explicitly requires them.
 
 ## Testing and evaluation
 
@@ -179,4 +213,3 @@ The API is available at http://127.0.0.1:8000. Set secrets through the shell env
 - Do not commit `.env`, `.venv`, SQLite databases, private raw PDFs, model caches, or generated Python bytecode.
 - Update API docs and tests when adding endpoints.
 - The frontend expects the backend at port 8000 and uses a Next.js rewrite for `/api/rag`.
-

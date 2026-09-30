@@ -1,6 +1,14 @@
 # GenX Streaming Live RAG
 
+<p align="center">
+  <img src="logo.png" alt="GenX Streaming Live RAG logo" width="180" />
+</p>
+
 GenX Streaming Live RAG is an end-to-end streaming retrieval-augmented generation system for live transcripts and audio. It waits for stable intent, retrieves only when useful, answers from the supplied corpus, validates citations and grounding, and exposes the decision and telemetry trail in a web control room.
+
+## Demo video
+
+[Watch the GenX Streaming Live RAG demo](https://drive.google.com/file/d/1O0S11cT4RK201Q9DA3Om2AzDHGLNSCC7/view?usp=sharing)
 
 ## What the product does
 
@@ -41,6 +49,27 @@ GenX Streaming Live RAG is an end-to-end streaming retrieval-augmented generatio
 ```
 
 ## Quick start
+
+### Prepare the corpus first
+
+The launch scripts start the backend and frontend; they do not rebuild the corpus automatically. Before
+running `start-dev.bat` or `start-dev.sh`, make sure `backend/data/processed/corpus.json` exists. The
+repository includes a processed corpus for immediate demo use. If you are using a new or replacement
+corpus, place the PDF, Markdown, TXT, or JSON files in `backend/data/raw/` and rebuild it before starting
+the services:
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m app.cli ingest data/raw data/processed
+```
+
+On macOS/Linux, use `source .venv/bin/activate` instead of the PowerShell activation command. After a
+successful rebuild, return to the repository root and run the launcher. Once the API is running, new files
+can also be uploaded or processed through the frontend Corpus Management panel or the `/corpus/upload`
+and `/corpus/rebuild` endpoints.
 
 ### One command
 
@@ -158,4 +187,3 @@ The current evaluation summary is in [backend/docs/EVALUATION_REPORT.md](backend
 ## Current status
 
 The backend and frontend are separated for deployment and maintenance. The backend is independently testable and deployable; the frontend is an independent Next.js application. The root launchers are intended for local development and demo use, while Docker remains available for backend-only deployment.
-
